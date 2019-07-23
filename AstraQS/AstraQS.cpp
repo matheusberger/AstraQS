@@ -10,6 +10,8 @@ int main(int argc, char** argv)
 {
 	astra::initialize();
 
+	astra::StreamSet streamSet;
+
 	astra::terminate();
 
 	std::cout << "hit enter to exit program" << std::endl;
