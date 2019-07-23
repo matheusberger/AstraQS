@@ -15,14 +15,23 @@ int main(int argc, char** argv)
 
 	reader.stream<astra::DepthStream>().start();
 
-	astra::Frame frame = reader.get_latest_frame();
-	const auto depthFrame = frame.get<astra::DepthFrame>();
+	const int maxFramesToProcess = 100;
+	int count = 0;
+
+	do {
+		astra::Frame frame = reader.get_latest_frame();
+		const auto depthFrame = frame.get<astra::DepthFrame>();
 
 
-	const int frameIndex = depthFrame.frame_index();
-	const short pixelValue = depthFrame.data()[0];
+		const int frameIndex = depthFrame.frame_index();
+		const short pixelValue = depthFrame.data()[0];
 
-	std::cout << std::endl << "Depth frameIndex: " << frameIndex << " pixelValue: " << pixelValue << std::endl << std::endl;
+		std::cout << std::endl << "Depth frameIndex: " << frameIndex << " pixelValue: " << pixelValue << std::endl;
+		count++;
+	} while (count < maxFramesToProcess);
+
+	std::cout << "press any key to continue" << std::endl;
+	std::cin.get();
 
 	astra::terminate();
 
