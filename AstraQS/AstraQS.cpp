@@ -11,6 +11,18 @@ int main(int argc, char** argv)
 	astra::initialize();
 
 	astra::StreamSet streamSet;
+	astra::StreamReader reader = streamSet.create_reader();
+
+	reader.stream<astra::DepthStream>().start();
+
+	astra::Frame frame = reader.get_latest_frame();
+	const auto depthFrame = frame.get<astra::DepthFrame>();
+
+
+	const int frameIndex = depthFrame.frame_index();
+	const short pixelValue = depthFrame.data()[0];
+
+	std::cout << std::endl << "Depth frameIndex: " << frameIndex << " pixelValue: " << pixelValue << std::endl << std::endl;
 
 	astra::terminate();
 
