@@ -4,6 +4,7 @@
 #include "pch.h"
 #include <iostream>
 #include <cstdio>
+#include <ctime>
 #include <astra/astra.hpp>
 
 class DepthFrameListener : public astra::FrameListener
@@ -35,7 +36,7 @@ private:
 		const int frameIndex = depthFrame.frame_index();
 		const short middleValue = get_middle_value(depthFrame);
 
-		std::printf("Depth frameIndex: %d value: %d \n", frameIndex, middleValue);
+		//std::printf("Depth frameIndex: %d value: %d \n", frameIndex, middleValue);
 	}
 
 	short get_middle_value(const astra::DepthFrame& depthFrame) const
@@ -56,6 +57,144 @@ private:
 	int maxFramesToProcess_{ 0 };
 };
 
+class BodyFrameListener : public astra::FrameListener
+{
+public:
+	void check_fps()
+	{
+		double fpsFactor = 0.02;
+
+		std::clock_t newTimepoint = std::clock();
+		long double frameDuration = (newTimepoint - lastTimepoint_) / static_cast<long double>(CLOCKS_PER_SEC);
+
+		frameDuration_ = frameDuration * fpsFactor + frameDuration_ * (1 - fpsFactor);
+		lastTimepoint_ = newTimepoint;
+		double fps = 1.0 / frameDuration_;
+
+		printf("FPS: %3.1f (%3.4Lf ms)\n", fps, frameDuration_ * 1000);
+	}
+
+	void processBodies(astra::Frame& frame)
+	{
+		astra::BodyFrame bodyFrame = frame.get<astra::BodyFrame>();
+
+		jointPositions_.clear();
+
+		if (!bodyFrame.is_valid() || bodyFrame.info().width() == 0 || bodyFrame.info().height() == 0)
+		{
+			std::cout << "body frame is not valid!" << std::endl;
+			return;
+		}
+
+		const float jointScale = bodyFrame.info().width() / 120.f;
+
+		const auto& bodies = bodyFrame.bodies();
+
+		for (auto& body : bodies)
+		{
+			//printf("Processing frame #%d body %d left hand: %u\n",
+//				bodyFrame.frame_index(), body.id(), unsigned(body.hand_poses().left_hand()));
+			for (auto& joint : body.joints())
+			{
+				jointPositions_.push_back(joint.depth_position());
+			}
+
+			update_body(body, jointScale);
+		}
+	}
+
+	void update_body(astra::Body body,
+		const float jointScale)
+	{
+		const auto& joints = body.joints();
+
+		if (joints.empty())
+		{
+			return;
+		}
+
+		for (const auto& joint : joints)
+		{
+			astra::JointType type = joint.type();
+			const auto& pos = joint.depth_position();
+
+			if (joint.status() == astra::JointStatus::NotTracked)
+			{
+				continue;
+			}
+		}
+
+		update_bone(joints, jointScale, astra::JointType::Head, astra::JointType::Neck);
+		update_bone(joints, jointScale, astra::JointType::Neck, astra::JointType::ShoulderSpine);
+
+		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::LeftShoulder);
+		update_bone(joints, jointScale, astra::JointType::LeftShoulder, astra::JointType::LeftElbow);
+		update_bone(joints, jointScale, astra::JointType::LeftElbow, astra::JointType::LeftWrist);
+		update_bone(joints, jointScale, astra::JointType::LeftWrist, astra::JointType::LeftHand);
+
+		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::RightShoulder);
+		update_bone(joints, jointScale, astra::JointType::RightShoulder, astra::JointType::RightElbow);
+		update_bone(joints, jointScale, astra::JointType::RightElbow, astra::JointType::RightWrist);
+		update_bone(joints, jointScale, astra::JointType::RightWrist, astra::JointType::RightHand);
+
+		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::MidSpine);
+		update_bone(joints, jointScale, astra::JointType::MidSpine, astra::JointType::BaseSpine);
+
+		update_bone(joints, jointScale, astra::JointType::BaseSpine, astra::JointType::LeftHip);
+		update_bone(joints, jointScale, astra::JointType::LeftHip, astra::JointType::LeftKnee);
+		update_bone(joints, jointScale, astra::JointType::LeftKnee, astra::JointType::LeftFoot);
+
+		update_bone(joints, jointScale, astra::JointType::BaseSpine, astra::JointType::RightHip);
+		update_bone(joints, jointScale, astra::JointType::RightHip, astra::JointType::RightKnee);
+		update_bone(joints, jointScale, astra::JointType::RightKnee, astra::JointType::RightFoot);
+	}
+
+	void update_bone(const astra::JointList& joints,
+		const float jointScale, astra::JointType j1,
+		astra::JointType j2)
+	{
+		const auto& joint1 = joints[int(j1)];
+		const auto& joint2 = joints[int(j2)];
+
+		if (joint1.status() == astra::JointStatus::NotTracked ||
+			joint2.status() == astra::JointStatus::NotTracked)
+		{
+			//don't render bones between untracked joints
+			return;
+		}
+
+		//actually depth position, not world position
+		const auto& jp1 = joint1.depth_position();
+		const auto& jp2 = joint2.depth_position();
+	}
+
+	void printBody()
+	{
+		if (!jointPositions_.empty())
+		{
+			std::cout << jointPositions_.size() << std::endl;
+			for (auto& joint : jointPositions_)
+			{
+				std::cout << joint.x << std::endl;
+			}
+		}
+	}
+
+	void on_frame_ready(astra::StreamReader& reader,
+		astra::Frame& frame) override
+	{
+		processBodies(frame);
+		printBody();
+		//check_fps();
+	}
+
+private:
+	long double frameDuration_{ 0 };
+	std::clock_t lastTimepoint_{ 0 };
+
+	std::vector<astra::Vector2f> jointPositions_;
+};
+
 int main(int argc, char** argv)
 {
 	astra::initialize();
@@ -63,10 +202,15 @@ int main(int argc, char** argv)
 	astra::StreamSet streamSet;
 	astra::StreamReader reader = streamSet.create_reader();
 
+	reader.stream<astra::BodyStream>().start();
 	reader.stream<astra::DepthStream>().start();
 
-	DepthFrameListener listener(500);
+	DepthFrameListener listener(300);
 	reader.add_listener(listener);
+
+	BodyFrameListener bodyTracker;
+	reader.add_listener(bodyTracker);
+	reader.stream<astra::BodyStream>().set_skeleton_profile(astra::SkeletonProfile::Full);
 
 	do {
 		astra_update();
