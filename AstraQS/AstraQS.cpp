@@ -79,8 +79,6 @@ public:
 	{
 		astra::BodyFrame bodyFrame = frame.get<astra::BodyFrame>();
 
-		jointPositions_.clear();
-
 		if (!bodyFrame.is_valid() || bodyFrame.info().width() == 0 || bodyFrame.info().height() == 0)
 		{
 			std::cout << "body frame is not valid!" << std::endl;
@@ -93,12 +91,6 @@ public:
 
 		for (auto& body : bodies)
 		{
-			joints_ = body.joints();
-			for (auto& joint : body.joints())
-			{
-				jointPositions_.push_back(joint.depth_position());
-			}
-
 			update_body(body, jointScale);
 		}
 	}
@@ -113,41 +105,7 @@ public:
 			return;
 		}
 
-		for (const auto& joint : joints)
-		{
-			astra::JointType type = joint.type();
-			const auto& pos = joint.depth_position();
-
-			if (joint.status() == astra::JointStatus::NotTracked)
-			{
-				continue;
-			}
-		}
-/*
-		update_bone(joints, jointScale, astra::JointType::Head, astra::JointType::Neck);
-		update_bone(joints, jointScale, astra::JointType::Neck, astra::JointType::ShoulderSpine);
-
-		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::LeftShoulder);
-		update_bone(joints, jointScale, astra::JointType::LeftShoulder, astra::JointType::LeftElbow);
-		update_bone(joints, jointScale, astra::JointType::LeftElbow, astra::JointType::LeftWrist);
-		update_bone(joints, jointScale, astra::JointType::LeftWrist, astra::JointType::LeftHand);
-
-		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::RightShoulder);
-		update_bone(joints, jointScale, astra::JointType::RightShoulder, astra::JointType::RightElbow);
-		update_bone(joints, jointScale, astra::JointType::RightElbow, astra::JointType::RightWrist);
-		update_bone(joints, jointScale, astra::JointType::RightWrist, astra::JointType::RightHand);
-
-		update_bone(joints, jointScale, astra::JointType::ShoulderSpine, astra::JointType::MidSpine);
-		update_bone(joints, jointScale, astra::JointType::MidSpine, astra::JointType::BaseSpine);
-
-		update_bone(joints, jointScale, astra::JointType::BaseSpine, astra::JointType::LeftHip);
-		update_bone(joints, jointScale, astra::JointType::LeftHip, astra::JointType::LeftKnee);
-		update_bone(joints, jointScale, astra::JointType::LeftKnee, astra::JointType::LeftFoot);
-
-		update_bone(joints, jointScale, astra::JointType::BaseSpine, astra::JointType::RightHip);
-		update_bone(joints, jointScale, astra::JointType::RightHip, astra::JointType::RightKnee);
-		update_bone(joints, jointScale, astra::JointType::RightKnee, astra::JointType::RightFoot);
-*/
+		joints_ = joints;
 	}
 
 	void printBody()
@@ -179,7 +137,7 @@ public:
 					type = "MidSpine";
 					break;
 				default:
-					type = "lol";
+					type = "-----";
 					break;
 				}
 
@@ -201,7 +159,6 @@ private:
 	long double frameDuration_{ 0 };
 	std::clock_t lastTimepoint_{ 0 };
 
-	std::vector<astra::Vector2f> jointPositions_;
 	astra::JointList joints_;
 };
 
@@ -229,19 +186,5 @@ int main(int argc, char** argv)
 	reader.remove_listener(listener);
 	astra::terminate();
 
-	std::cout << "hit enter to exit program" << std::endl;
-	std::cin.get();
-
 	return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
