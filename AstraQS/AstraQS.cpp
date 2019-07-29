@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstdio>
 #include <ctime>
+#include <string>
 #include <astra/astra.hpp>
 
 class DepthFrameListener : public astra::FrameListener
@@ -92,8 +93,7 @@ public:
 
 		for (auto& body : bodies)
 		{
-			//printf("Processing frame #%d body %d left hand: %u\n",
-//				bodyFrame.frame_index(), body.id(), unsigned(body.hand_poses().left_hand()));
+			joints_ = body.joints();
 			for (auto& joint : body.joints())
 			{
 				jointPositions_.push_back(joint.depth_position());
@@ -123,7 +123,7 @@ public:
 				continue;
 			}
 		}
-
+/*
 		update_bone(joints, jointScale, astra::JointType::Head, astra::JointType::Neck);
 		update_bone(joints, jointScale, astra::JointType::Neck, astra::JointType::ShoulderSpine);
 
@@ -147,36 +147,45 @@ public:
 		update_bone(joints, jointScale, astra::JointType::BaseSpine, astra::JointType::RightHip);
 		update_bone(joints, jointScale, astra::JointType::RightHip, astra::JointType::RightKnee);
 		update_bone(joints, jointScale, astra::JointType::RightKnee, astra::JointType::RightFoot);
-	}
-
-	void update_bone(const astra::JointList& joints,
-		const float jointScale, astra::JointType j1,
-		astra::JointType j2)
-	{
-		const auto& joint1 = joints[int(j1)];
-		const auto& joint2 = joints[int(j2)];
-
-		if (joint1.status() == astra::JointStatus::NotTracked ||
-			joint2.status() == astra::JointStatus::NotTracked)
-		{
-			//don't render bones between untracked joints
-			return;
-		}
-
-		//actually depth position, not world position
-		const auto& jp1 = joint1.depth_position();
-		const auto& jp2 = joint2.depth_position();
+*/
 	}
 
 	void printBody()
 	{
-		if (!jointPositions_.empty())
+		if (!joints_.empty())
 		{
-			std::cout << jointPositions_.size() << std::endl;
-			for (auto& joint : jointPositions_)
+			std::cout << "Currently tracking " << joints_.size() << " joints!!!" << std::endl << "joints tracked are: " << std::endl << std::endl;
+			for (auto& joint : joints_)
 			{
-				std::cout << joint.x << std::endl;
+				std::string type;
+				switch (joint.type())
+				{
+				case astra::JointType::Head:
+					type = "Head";
+					break;
+				case astra::JointType::Neck:
+					type = "Neck";
+					break;
+				case astra::JointType::RightShoulder:
+					type = "RightShoulder";
+					break;
+				case astra::JointType::LeftShoulder:
+					type = "LeftShoulder";
+					break;
+				case astra::JointType::ShoulderSpine:
+					type = "ShoulderSpine";
+					break;
+				case astra::JointType::MidSpine:
+					type = "MidSpine";
+					break;
+				default:
+					type = "lol";
+					break;
+				}
+
+				std::cout  << type << std::endl;
 			}
+			std::cout << std::endl << "===================================================" << std::endl << std::endl;
 		}
 	}
 
@@ -193,6 +202,7 @@ private:
 	std::clock_t lastTimepoint_{ 0 };
 
 	std::vector<astra::Vector2f> jointPositions_;
+	astra::JointList joints_;
 };
 
 int main(int argc, char** argv)
