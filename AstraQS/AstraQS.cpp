@@ -6,6 +6,56 @@
 #include <cstdio>
 #include <astra/astra.hpp>
 
+class DepthFrameListener : public astra::FrameListener
+{
+public:
+	DepthFrameListener(int maxFramesToProcess)
+		: maxFramesToProcess_(maxFramesToProcess)
+	{}
+
+	bool is_finished() const { return isFinished_; }
+
+private:
+	void on_frame_ready(astra::StreamReader& reader,
+		astra::Frame& frame) override
+	{
+		const astra::DepthFrame depthFrame = frame.get<astra::DepthFrame>();
+
+		if (depthFrame.is_valid())
+		{
+			print_depth_frame(depthFrame);
+			++framesProcessed_;
+		}
+
+		isFinished_ = framesProcessed_ >= maxFramesToProcess_;
+	}
+
+	void print_depth_frame(const astra::DepthFrame& depthFrame) const
+	{
+		const int frameIndex = depthFrame.frame_index();
+		const short middleValue = get_middle_value(depthFrame);
+
+		std::printf("Depth frameIndex: %d value: %d \n", frameIndex, middleValue);
+	}
+
+	short get_middle_value(const astra::DepthFrame& depthFrame) const
+	{
+		const int width = depthFrame.width();
+		const int height = depthFrame.height();
+
+		const size_t middleIndex = ((width * (height / 2.f)) + (width / 2.f));
+
+		const short* frameData = depthFrame.data();
+		const short middleValue = frameData[middleIndex];
+
+		return middleValue;
+	}
+
+	bool isFinished_{ false };
+	int framesProcessed_{ 0 };
+	int maxFramesToProcess_{ 0 };
+};
+
 int main(int argc, char** argv)
 {
 	astra::initialize();
@@ -15,24 +65,14 @@ int main(int argc, char** argv)
 
 	reader.stream<astra::DepthStream>().start();
 
-	const int maxFramesToProcess = 100;
-	int count = 0;
+	DepthFrameListener listener(500);
+	reader.add_listener(listener);
 
 	do {
-		astra::Frame frame = reader.get_latest_frame();
-		const auto depthFrame = frame.get<astra::DepthFrame>();
+		astra_update();
+	} while (!listener.is_finished());
 
-
-		const int frameIndex = depthFrame.frame_index();
-		const short pixelValue = depthFrame.data()[0];
-
-		std::cout << std::endl << "Depth frameIndex: " << frameIndex << " pixelValue: " << pixelValue << std::endl;
-		count++;
-	} while (count < maxFramesToProcess);
-
-	std::cout << "press any key to continue" << std::endl;
-	std::cin.get();
-
+	reader.remove_listener(listener);
 	astra::terminate();
 
 	std::cout << "hit enter to exit program" << std::endl;
